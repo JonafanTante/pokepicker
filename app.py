@@ -123,7 +123,6 @@ if 'data' not in st.session_state:
 df = st.session_state['data'].copy()
 
 st.title('Pokeball-Picker')
-st.sidebar.write('In dieser App kannst du ein Pokémon auswählen und erhältst anschließend Vorschläge für die zu dem Sprite passenden Bälle! Solltest du mit der Darstellung des Sprites unzufrieden sein, kannst du im unteren Teil der App auch ein eigenes Bild hochladen und dir entsprechende Bälle empfehlen lassen. Die Basis für die Empfehlungen bilden die "Hauptfarben" des Pokémon, die mit den Hauptfarben der Bälle verglichen werden.')
 
 
 pokemon_choice = st.selectbox("Wähle ein Pokémon:", df['germanname'].unique())
