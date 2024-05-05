@@ -126,8 +126,6 @@ def get_main_colors(img, n_colors):
 if 'data' not in st.session_state:
     st.session_state['data'] = pd.read_excel('pokemondf.xlsx')
 
-with open('color_data.json', 'r') as file:
-    balls_colors = json.load(file)
 df = st.session_state['data'].copy()
 
 st.title('Pokeball-Picker')
