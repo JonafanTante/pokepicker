@@ -1,14 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.metrics import pairwise_distances
 from PIL import Image
 import random
 from sklearn.cluster import MiniBatchKMeans
 import json
 import requests
 from io import BytesIO
-from transparent_background import Remover
 import matplotlib.pyplot as plt
 import colorspacious
 st.set_page_config(page_title='PokéballPicker',page_icon='cover.jpg',layout='centered')
@@ -181,70 +179,7 @@ with col3:
         if pd.notna(row[col]):
             st.image(st.session_state['ball_images'][row[col]], use_column_width=False)
 
-img_file_buffer = st.file_uploader("Eigenes Bild hochladen", type=["png", "jpg", "jpeg"])
-if img_file_buffer is not None:
-    image = Image.open(img_file_buffer)
 
-    # Originalabmessungen auslesen
-    original_width, original_height = image.size
-
-    # Bestimmen, ob die Höhe oder die Breite größer ist und entsprechend skalieren
-    if original_width > original_height:
-        # Breite ist größer, also Breite auf 400 setzen
-        scale_factor = 400 / original_width
-        new_width = 400
-        new_height = int(original_height * scale_factor)
-    else:
-        # Höhe ist größer, also Höhe auf 400 setzen
-        scale_factor = 400 / original_height
-        new_height = 400
-        new_width = int(original_width * scale_factor)
-
-    # Bild skalieren
-    image = image.resize((new_width, new_height), Image.LANCZOS)
-
-
-
-    if image.mode != 'RGBA' and 'processed_image' not in st.session_state:
-        st.warning('Achtung, die Farben des Hintergrunds deines Pokemons, gehen mit in die Kalkulation ein.')
-        keinetransparenz = True
-        out = image.convert('RGBA')
-    else:
-        if 'processed_image' in st.session_state:
-            out = st.session_state['processed_image']
-        keinetransparenz = False
-    col1, col3 = st.columns([0.75,0.25])
-    with col1:
-        st.image(
-            out,
-            use_column_width=True,
-        )
-        uploadpercent = get_main_colors(out, n_colors=clusterzahl)
-        st.pyplot(plot_horizontal_stacked_bar(uploadpercent))
-        if keinetransparenz:
-            st.write('Mit folgendem Knopf kannst du den Hintergrund des Pokemons auf deinem Bild entfernen lassen. Beachte jedoch, dass der Algorithmus je nach Größe des Bildes einige Zeit in Anspruch nehmen kann.')
-            if st.button('Hintergrund entfernen!'):
-                with st.spinner('Hintergrund wird übermalt...'):
-                    remover = Remover(mode='base-nightly')
-                    st.session_state['processed_image'] = remover.process(image)
-                    st.rerun()
-        if 'processed_image' in st.session_state:
-            if st.button('Bild zurücksetzen!'):
-                del st.session_state['processed_image']
-                st.rerun()
-
-    with col3:
-        matches_upload = {}
-        for key,value in st.session_state['ballvalues'].items():
-            dist = calculate_color_distance(uploadpercent,st.session_state['ballvalues'][key])
-            matches_upload[key] = dist
-
-        best_three_balls_upload = [name for name, score in sorted(matches_upload.items(), key=lambda item: item[1])[:3]]
-
-        st.subheader('Best Balls \n (Dominant Color)')
-        for ball in best_three_balls_upload:
-            if ball in st.session_state['ball_images']:
-                st.image(st.session_state['ball_images'][ball], use_column_width=False)
 
 footer = """
 <style>
