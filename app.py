@@ -6,11 +6,14 @@ import random
 from sklearn.cluster import MiniBatchKMeans
 import json
 import requests
-from io import BytesIO
+from io import BytesIO, StringIO
 import matplotlib.pyplot as plt
 import colorspacious
+
 st.set_page_config(page_title='PokéballPicker',page_icon='cover.jpg',layout='centered')
+
 clusterzahl = 5
+
 balldict = {
     'Freundesball': 'Freundesball.png',
     'Wiederball': 'Wiederball.png',
@@ -41,19 +44,15 @@ balldict = {
 def plot_horizontal_stacked_bar(df):
     # DataFrame sortieren
     df = df.sort_values(by='anteil', ascending=False).reset_index(drop=True)
-
     # Plot initialisieren
     fig, ax = plt.subplots(figsize=(10, 2))  # Reduzierte Höhe für ein schlankes Diagramm
-
     # Startposition für jeden Balken
     starts = [0]
     for idx in range(1, len(df)):
         starts.append(starts[idx - 1] + df.iloc[idx - 1]['anteil'])
-
     # Balken hinzufügen
     for idx, row in df.iterrows():
         ax.barh(0, row['anteil'], left=starts[idx], color=tuple(val / 255 for val in row['farbe']), edgecolor='black')
-
     # Diagramm konfigurieren
     ax.set_yticks([])
     ax.set_xticks([])
@@ -67,17 +66,14 @@ def plot_horizontal_stacked_bar(df):
 
 def calculate_color_distance(pokemondf, balldf):
     total_distance = 0
-    
     # Durchlaufe jede Farbkombination der beiden DataFrames
     for _, poke_row in pokemondf.iterrows():
         for _, ball_row in balldf.iterrows():
             # Konvertiere RGB-Tupel in CIELAB unter Verwendung der CIECAM02 UCS (Uniform Colour Space)
             poke_color_lab = colorspacious.cspace_convert(poke_row['farbe'], "sRGB255", "CIELab")
             ball_color_lab = colorspacious.cspace_convert(ball_row['farbe'], "sRGB255", "CIELab")
-            
             # Berechne die CIEDE2000 Distanz
             color_distance = colorspacious.deltaE(poke_color_lab, ball_color_lab, input_space="CIELab")
-            
             # Gewichte die Distanz mit dem Produkt der Anteile und summiere auf
             total_distance += color_distance * poke_row['anteil'] * ball_row['anteil']
 
@@ -94,12 +90,10 @@ if 'ballvalues' not in st.session_state:
     # Laden des JSON-Strings aus der Datei
     with open('ballvalues.json', 'r') as f:
         json_string = f.read()
-
     # Konvertieren des JSON-Strings zurück in ein Dictionary
     loaded_json = json.loads(json_string)
-
     # Konvertieren jedes JSON-Strings im Dictionary zurück in ein DataFrame
-    st.session_state['ballvalues'] = {key: pd.read_json(df_json) for key, df_json in loaded_json.items()}
+    st.session_state['ballvalues'] = {key: pd.read_json(StringIO(df_json)) for key, df_json in loaded_json.items()}
 
 
 @st.cache_data(max_entries=5)
@@ -150,7 +144,6 @@ for key,value in st.session_state['ballvalues'].items():
 # Sortiere die Bälle nach ihrem Match-Score und extrahiere die Namen der besten drei Bälle
 best_three_balls = [name for name, score in sorted(matches.items(), key=lambda item: item[1])[:3]]
 
-
 col1, col2, col3 = st.columns([0.5, 0.25, 0.25])
 with col1:
     st.subheader('Sprite')
@@ -170,14 +163,11 @@ if is_shiny:
 else:
     ball_columns = ['ball_1', 'ball_2', 'ball_3']
 
-
 with col3:
     st.subheader('Best Balls \n (Human choice)')
     for col in ball_columns:
         if pd.notna(row[col]):
             st.image(st.session_state['ball_images'][row[col]], use_column_width=False)
-
-
 
 footer = """
 <style>
