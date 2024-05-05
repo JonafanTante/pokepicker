@@ -38,7 +38,6 @@ balldict = {
     'Ultraball': 'Ultraball.png',
     'Turboball':'Turboball.png'
 }
-random_choice = random.randint(0, 100)
 
 
 def plot_horizontal_stacked_bar(df):
@@ -104,10 +103,6 @@ if 'ballvalues' not in st.session_state:
     # Konvertieren jedes JSON-Strings im Dictionary zurück in ein DataFrame
     st.session_state['ballvalues'] = {key: pd.read_json(df_json) for key, df_json in loaded_json.items()}
 
-#if random_choice == 1:
-#    st.image(st.session_state['ball_images']['Flottball'],use_column_width=True)
-#    st.stop()
-
 
 @st.cache_data(max_entries=5)
 def load_image(image_path):
@@ -139,7 +134,7 @@ df = st.session_state['data'].copy()
 
 st.title('Pokeball-Picker')
 st.sidebar.write('In dieser App kannst du ein Pokémon auswählen und erhältst anschließend Vorschläge für die zu dem Sprite passenden Bälle! Solltest du mit der Darstellung des Sprites unzufrieden sein, kannst du im unteren Teil der App auch ein eigenes Bild hochladen und dir entsprechende Bälle empfehlen lassen. Die Basis für die Empfehlungen bilden die "Hauptfarben" des Pokémon, die mit den Hauptfarben der Bälle verglichen werden.')
-#clusterzahl = st.sidebar.slider('Wie viele Hauptfarben sollen berücksichtigt werden?', min_value=1, max_value=5, step=1, value=2)
+
 
 pokemon_choice = st.selectbox("Wähle ein Pokémon:", df['germanname'].unique())
 row = df[df['germanname'] == pokemon_choice].iloc[0]
