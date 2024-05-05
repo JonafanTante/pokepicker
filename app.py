@@ -44,7 +44,11 @@ is_shiny = st.checkbox("Shiny-Version auswählen")
 normal_sprite_path = row.sprite
 shiny_sprite_path = row.shiny_sprite
 chosen_sprite_path = shiny_sprite_path if is_shiny else normal_sprite_path
-pokemon_sprite = load_image(chosen_sprite_path)
+try:
+    pokemon_sprite = load_image(chosen_sprite_path)
+except:
+    st.warning('Der Sprite kann nicht abgerufen werden. Hast du vielleicht ein Shiny ausgewählt, das noch gar nicht legal erhältlich ist?')
+    st.stop()
 pokemon_percent = get_main_colors(pokemon_sprite, n_colors=clusterzahl)
 
 matches = {}
