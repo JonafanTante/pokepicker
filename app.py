@@ -9,7 +9,10 @@ import json
 import requests
 from io import BytesIO
 from transparent_background import Remover
+import matplotlib.pyplot as plt
+import colorspacious
 st.set_page_config(page_title='PokéballPicker',page_icon='cover.jpg',layout='centered')
+clusterzahl = 5
 balldict = {
     'Freundesball': 'Freundesball.png',
     'Wiederball': 'Wiederball.png',
@@ -30,16 +33,58 @@ balldict = {
     'Premierball': 'Premierball.png',
     'Pokeball': 'Pokeball.png',
     'Finsterball': 'Finsterball.png',
-    'Safariball': 'Safariball.png',
     'Netzball': 'Netzball.png',
     'Meisterball': 'Meisterball.png',
-    'Jubelball': 'Jubelball.png',
-    'Rätselball': 'Raetselball.png',
-    'Turnierball': 'Turnierball.png',
     'Ultraball': 'Ultraball.png',
     'Turboball':'Turboball.png'
 }
+random_choice = random.randint(0, 100)
 
+
+def plot_horizontal_stacked_bar(df):
+    # DataFrame sortieren
+    df = df.sort_values(by='anteil', ascending=False).reset_index(drop=True)
+
+    # Plot initialisieren
+    fig, ax = plt.subplots(figsize=(10, 2))  # Reduzierte Höhe für ein schlankes Diagramm
+
+    # Startposition für jeden Balken
+    starts = [0]
+    for idx in range(1, len(df)):
+        starts.append(starts[idx - 1] + df.iloc[idx - 1]['anteil'])
+
+    # Balken hinzufügen
+    for idx, row in df.iterrows():
+        ax.barh(0, row['anteil'], left=starts[idx], color=tuple(val / 255 for val in row['farbe']), edgecolor='black')
+
+    # Diagramm konfigurieren
+    ax.set_yticks([])
+    ax.set_xticks([])
+    ax.set_xlim(0, 1)
+    ax.set_frame_on(False)
+    ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax.tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
+
+    plt.tight_layout()
+    return plt
+
+def calculate_color_distance(pokemondf, balldf):
+    total_distance = 0
+    
+    # Durchlaufe jede Farbkombination der beiden DataFrames
+    for _, poke_row in pokemondf.iterrows():
+        for _, ball_row in balldf.iterrows():
+            # Konvertiere RGB-Tupel in CIELAB unter Verwendung der CIECAM02 UCS (Uniform Colour Space)
+            poke_color_lab = colorspacious.cspace_convert(poke_row['farbe'], "sRGB255", "CIELab")
+            ball_color_lab = colorspacious.cspace_convert(ball_row['farbe'], "sRGB255", "CIELab")
+            
+            # Berechne die CIEDE2000 Distanz
+            color_distance = colorspacious.deltaE(poke_color_lab, ball_color_lab, input_space="CIELab")
+            
+            # Gewichte die Distanz mit dem Produkt der Anteile und summiere auf
+            total_distance += color_distance * poke_row['anteil'] * ball_row['anteil']
+
+    return total_distance
 
 # Funktion zum Laden aller Pokéball-Bilder beim Start der App
 if 'ball_images' not in st.session_state:
@@ -48,6 +93,20 @@ if 'ball_images' not in st.session_state:
         img = Image.open(value).convert('RGBA')
         st.session_state['ball_images'][key] = img
 
+if 'ballvalues' not in st.session_state:
+    # Laden des JSON-Strings aus der Datei
+    with open('ballvalues.json', 'r') as f:
+        json_string = f.read()
+
+    # Konvertieren des JSON-Strings zurück in ein Dictionary
+    loaded_json = json.loads(json_string)
+
+    # Konvertieren jedes JSON-Strings im Dictionary zurück in ein DataFrame
+    st.session_state['ballvalues'] = {key: pd.read_json(df_json) for key, df_json in loaded_json.items()}
+
+#if random_choice == 1:
+#    st.image(st.session_state['ball_images']['Flottball'],use_column_width=True)
+#    st.stop()
 
 
 @st.cache_data(max_entries=5)
@@ -62,12 +121,13 @@ def get_main_colors(img, n_colors):
     kmeans = MiniBatchKMeans(n_clusters=n_colors, random_state=42)
     kmeans.fit(data)
     centers = kmeans.cluster_centers_
-    return centers
-
-def match_colors(pokemon_colors, ball_colors):
-    distances = pairwise_distances(pokemon_colors, ball_colors)
-    index = np.sum(distances, axis=0).argmin()
-    return index
+    labels = kmeans.predict(data)
+    unique_labels, labelcount = np.unique(labels, return_counts=True)
+    labeldf = pd.DataFrame({'cluster':unique_labels,'anzahl':labelcount})
+    labeldf['anteil'] = labeldf.anzahl / labeldf.anzahl.sum()
+    colors = [tuple(map(int, center)) for center in centers]
+    labeldf['farbe'] = [colors[cluster] for cluster in unique_labels]
+    return labeldf
 
 
 if 'data' not in st.session_state:
@@ -79,7 +139,7 @@ df = st.session_state['data'].copy()
 
 st.title('Pokeball-Picker')
 st.sidebar.write('In dieser App kannst du ein Pokémon auswählen und erhältst anschließend Vorschläge für die zu dem Sprite passenden Bälle! Solltest du mit der Darstellung des Sprites unzufrieden sein, kannst du im unteren Teil der App auch ein eigenes Bild hochladen und dir entsprechende Bälle empfehlen lassen. Die Basis für die Empfehlungen bilden die "Hauptfarben" des Pokémon, die mit den Hauptfarben der Bälle verglichen werden.')
-clusterzahl = st.sidebar.slider('Wie viele Hauptfarben sollen berücksichtigt werden?', min_value=1, max_value=5, step=1, value=2)
+#clusterzahl = st.sidebar.slider('Wie viele Hauptfarben sollen berücksichtigt werden?', min_value=1, max_value=5, step=1, value=2)
 
 pokemon_choice = st.selectbox("Wähle ein Pokémon:", df['germanname'].unique())
 row = df[df['germanname'] == pokemon_choice].iloc[0]
@@ -88,13 +148,13 @@ normal_sprite_path = row.sprite
 shiny_sprite_path = row.shiny_sprite
 chosen_sprite_path = shiny_sprite_path if is_shiny else normal_sprite_path
 pokemon_sprite = load_image(chosen_sprite_path)
-pokemon_colors = get_main_colors(pokemon_sprite, n_colors=clusterzahl)
+pokemon_percent = get_main_colors(pokemon_sprite, n_colors=clusterzahl)
 
 matches = {}
-for name, colors in balls_colors.items():
-    distances = pairwise_distances(pokemon_colors, np.array(colors))
-    match_score = np.sum(distances, axis=0).min()
-    matches[name] = match_score
+for key,value in st.session_state['ballvalues'].items():
+    dist = calculate_color_distance(pokemon_percent,st.session_state['ballvalues'][key])
+    matches[key] = dist
+
 
 # Sortiere die Bälle nach ihrem Match-Score und extrahiere die Namen der besten drei Bälle
 best_three_balls = [name for name, score in sorted(matches.items(), key=lambda item: item[1])[:3]]
@@ -104,19 +164,13 @@ col1, col2, col3 = st.columns([0.5, 0.25, 0.25])
 with col1:
     st.subheader('Sprite')
     st.image(chosen_sprite_path, use_column_width=True)
+    st.pyplot(plot_horizontal_stacked_bar(pokemon_percent))
 
 with col2:
-    random_choice = random.randint(0, 5)
-    if random_choice == 2:
-        st.subheader('Best Ball \n (Dominant Color)')
-        st.image(st.session_state['ball_images']['Flottball'])
-        st.image(st.session_state['ball_images']['Flottball'])  
-        st.image(st.session_state['ball_images']['Flottball'])  
-    else:
-        st.subheader('Best Balls \n (Dominant Color)')
-        for ball in best_three_balls:
-            if ball in st.session_state['ball_images']:
-                st.image(st.session_state['ball_images'][ball], use_column_width=False)
+    st.subheader('Best Balls \n (Dominant Color)')
+    for ball in best_three_balls:
+        if ball in st.session_state['ball_images']:
+            st.image(st.session_state['ball_images'][ball], use_column_width=False)
 
 
 # Auswahl der richtigen Spalten basierend auf 'is_shiny'
@@ -170,6 +224,8 @@ if img_file_buffer is not None:
             out,
             use_column_width=True,
         )
+        uploadpercent = get_main_colors(out, n_colors=clusterzahl)
+        st.pyplot(plot_horizontal_stacked_bar(uploadpercent))
         if keinetransparenz:
             st.write('Mit folgendem Knopf kannst du den Hintergrund des Pokemons auf deinem Bild entfernen lassen. Beachte jedoch, dass der Algorithmus je nach Größe des Bildes einige Zeit in Anspruch nehmen kann.')
             if st.button('Hintergrund entfernen!'):
@@ -183,16 +239,15 @@ if img_file_buffer is not None:
                 st.rerun()
 
     with col3:
-        upload_colors = get_main_colors(out, n_colors=clusterzahl)
-        matches = {}
-        for name, colors in balls_colors.items():
-            distances = pairwise_distances(upload_colors, np.array(colors))
-            match_score = np.sum(distances, axis=0).min()
-            matches[name] = match_score
-        best_three_balls = [name for name, score in sorted(matches.items(), key=lambda item: item[1])[:3]]
+        matches_upload = {}
+        for key,value in st.session_state['ballvalues'].items():
+            dist = calculate_color_distance(uploadpercent,st.session_state['ballvalues'][key])
+            matches_upload[key] = dist
+
+        best_three_balls_upload = [name for name, score in sorted(matches_upload.items(), key=lambda item: item[1])[:3]]
 
         st.subheader('Best Balls \n (Dominant Color)')
-        for ball in best_three_balls:
+        for ball in best_three_balls_upload:
             if ball in st.session_state['ball_images']:
                 st.image(st.session_state['ball_images'][ball], use_column_width=False)
 
@@ -215,7 +270,7 @@ position: fixed;
 left: 0;
 bottom: 0;
 width: 100%;
-background-color: white;
+background-color: transparent;
 color: black;
 text-align: center;
 }

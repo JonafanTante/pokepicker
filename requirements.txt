@@ -7,6 +7,7 @@ certifi==2024.2.2
 charset-normalizer==3.3.2
 click==8.1.7
 colorama==0.4.6
+colorspacious==1.1.2
 easydict==1.13
 et-xmlfile==1.1.0
 filelock==3.14.0
@@ -28,6 +29,7 @@ MarkupSafe==2.1.5
 mdurl==0.1.2
 mkl==2021.4.0
 mpmath==1.3.0
+matplotlib==3.8.4
 networkx==3.3
 numpy==1.26.4
 opencv-python-headless
