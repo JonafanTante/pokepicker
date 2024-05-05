@@ -189,8 +189,12 @@ left: 0;
 bottom: 0;
 width: 100%;
 background-color: transparent;
-color: black;
+color: white; /* Textfarbe auf Weiß geändert */
 text-align: center;
+text-shadow: -1px -1px 0 #000,  
+              1px -1px 0 #000,
+             -1px  1px 0 #000,
+              1px  1px 0 #000; /* Schwarze Umrandung */
 }
 </style>
 <div class="footer">
