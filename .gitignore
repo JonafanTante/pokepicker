@@ -162,3 +162,4 @@ cython_debug/
 #custom
 imageuploader.py
 test.ipynb
+newtest.ipynb
